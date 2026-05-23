@@ -6,19 +6,22 @@ import {
   isValidProductImageUrl,
 } from '@/services/productService';
 
-export default async function Page({ searchParams }) {
-  // Đồng bộ hóa việc đọc searchParams chuẩn cấu trúc Next.js mới
-  const params = await searchParams;
-  const currentPage = parseInt(params?.page) || 1;
+// Ép buộc Next.js luôn render động ở trang chủ để tránh việc lưu cache phân trang sai lệch (Stale Data)
+export const dynamic = 'force-dynamic';
 
-  // Lấy dữ liệu sản phẩm từ Service đã được tối ưu hóa bằng Axios
+export default async function Page(props) {
+  // Giải nén searchParams một cách an toàn theo tiêu chuẩn bất đồng bộ mới của Next.js
+  const searchParams = await props.searchParams;
+  const currentPage = parseInt(searchParams?.page, 10) || 1;
+
+  // Gọi tầng Service Axios lấy danh sách sản phẩm trang chủ
   const { products, pagination } = await fetchHomeProducts(currentPage);
-  const totalPages = pagination.totalPages || 1;
-  const totalProducts = pagination.totalItems || 0;
+  const totalPages = pagination?.totalPages || 1;
+  const totalProducts = pagination?.totalItems || 0;
 
   /**
    * Thuật toán rút gọn danh sách số trang hiển thị (Ví dụ: 1 2 ... 9 10)
-   * Đảm bảo responsive tuyệt đối, không làm vỡ layout trên thiết bị di động
+   * Đảm bảo tính responsive tuyệt đối, không làm vỡ giao diện trên các thiết bị di động
    */
   const getPaginationRange = () => {
     const delta = 1; // Số lượng trang hiển thị xung quanh trang hiện tại
@@ -36,7 +39,7 @@ export default async function Page({ searchParams }) {
       }
     }
 
-    for (let i of range) {
+    for (const i of range) {
       if (l) {
         if (i - l === 2) {
           rangeWithDots.push(l + 1);
@@ -52,21 +55,19 @@ export default async function Page({ searchParams }) {
   };
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Breadcrumb: Tinh tế, nhẹ nhàng */}
-      <nav className="flex items-center gap-2 text-[13px] text-gray-500 px-2 tracking-wide">
-        <Link href="/" className="hover:text-blue-600 transition-colors">
-          Trang chủ
-        </Link>
+    <div className="space-y-8 pb-12 px-4 max-w-7xl mx-auto">
+      {/* Breadcrumb nhẹ nhàng, định vị chuẩn vị trí */}
+      <nav className="flex items-center gap-2 text-[13px] text-gray-500 pt-4 tracking-wide">
+        <span className="text-gray-400 select-none">Trang chủ</span>
       </nav>
 
-      {/* Header chuẩn thương mại */}
-      <div className="px-2">
+      {/* Khối Tiêu đề Giao diện */}
+      <div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
           Sản phẩm mới
         </h1>
         <p className="text-[14px] text-gray-500">
-          {products.length > 0 ? (
+          {products && products.length > 0 ? (
             <>
               Hiển thị{' '}
               <span className="font-bold text-gray-900">{products.length}</span>{' '}
@@ -75,28 +76,30 @@ export default async function Page({ searchParams }) {
               sản phẩm
             </>
           ) : (
-            'Đang cập nhật'
+            'Hệ thống đang cập nhật sản phẩm'
           )}
         </p>
       </div>
 
-      {products.length === 0 ? (
-        <div className="py-20 text-center border-t border-gray-100">
-          <p className="text-gray-400 font-medium">Hiện chưa có sản phẩm nào</p>
+      {!products || products.length === 0 ? (
+        <div className="py-20 text-center border border-dashed border-gray-200 bg-gray-50 rounded-xl">
+          <p className="text-gray-400 font-medium">Hiện chưa có sản phẩm nào được đăng tải</p>
         </div>
       ) : (
         <>
-          {/* Grid danh sách sản phẩm - Tối ưu hiển thị responsive */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8 justify-items-center">
+          {/* Grid danh sách sản phẩm - Tự động co giãn theo kích thước thiết bị */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {products.map((product) => {
+              // Tìm ảnh hợp lệ từ mảng ảnh của Cloudinary hệ thống
               const img = product.images?.find(
                 (i) => i.type === 'image' && isValidProductImageUrl(i.url),
               );
+              
               return (
                 <Link
                   key={product._id}
                   href={`/product/${product.slug}`}
-                  className="block w-full h-full"
+                  className="group block w-full h-full"
                 >
                   <ProductCard
                     product={{
@@ -109,24 +112,24 @@ export default async function Page({ searchParams }) {
             })}
           </div>
 
-          {/* Thanh phân trang Server-side - Fix triệt để lỗi nhảy sai route group trên Vercel */}
+          {/* Thanh điều hướng phân trang Server-side */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-12 pt-8 border-t border-gray-100 select-none">
-              {/* Nút Trước (Prev) */}
+              {/* Nút lùi trang (Prev) */}
               {currentPage > 1 ? (
                 <Link
-                  href={`/?page=${currentPage - 1}`} // 🟢 Đường dẫn chuẩn trỏ thẳng vào trang chủ
-                  className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all text-gray-600"
+                  href={`/?page=${currentPage - 1}`}
+                  className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-gray-600 shadow-sm"
                 >
                   <ChevronLeft size={20} />
                 </Link>
               ) : (
-                <div className="p-2 rounded-lg border border-gray-100 opacity-30 cursor-not-allowed text-gray-400">
+                <div className="p-2 rounded-lg border border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed text-gray-400">
                   <ChevronLeft size={20} />
                 </div>
               )}
 
-              {/* Các số trang hiển thị thông minh */}
+              {/* Dải danh sách trang thông minh */}
               <div className="flex items-center gap-1">
                 {getPaginationRange().map((item, index) => {
                   if (item === '...') {
@@ -144,11 +147,11 @@ export default async function Page({ searchParams }) {
                   return (
                     <Link
                       key={`page-${item}`}
-                      href={`/?page=${item}`} // 🟢 Đường dẫn chuẩn trỏ thẳng vào trang chủ
-                      className={`min-w-[40px] h-10 rounded-lg text-sm font-bold flex items-center justify-center transition-all ${
+                      href={`/?page=${item}`}
+                      className={`min-w-[40px] h-10 rounded-lg text-sm font-bold flex items-center justify-center transition-all shadow-sm ${
                         isActive
-                          ? 'bg-blue-600 text-white shadow-md shadow-blue-100'
-                          : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600 border border-transparent'
+                          ? 'bg-blue-600 text-white shadow-blue-100 border border-blue-600'
+                          : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-200'
                       }`}
                     >
                       {item}
@@ -157,16 +160,16 @@ export default async function Page({ searchParams }) {
                 })}
               </div>
 
-              {/* Nút Sau (Next) */}
+              {/* Nút tiến trang (Next) */}
               {currentPage < totalPages ? (
                 <Link
-                  href={`/?page=${currentPage + 1}`} // 🟢 Đường dẫn chuẩn trỏ thẳng vào trang chủ
-                  className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all text-gray-600"
+                  href={`/?page=${currentPage + 1}`}
+                  className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-gray-600 shadow-sm"
                 >
                   <ChevronRight size={20} />
                 </Link>
               ) : (
-                <div className="p-2 rounded-lg border border-gray-100 opacity-30 cursor-not-allowed text-gray-400">
+                <div className="p-2 rounded-lg border border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed text-gray-400">
                   <ChevronRight size={20} />
                 </div>
               )}
