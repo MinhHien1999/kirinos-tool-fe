@@ -1,6 +1,7 @@
 'use client';
 
 import { Editor } from '@tinymce/tinymce-react';
+import { compressImages } from '@/utils/imageCompression'; // 🟢 1. Import hàm nén dùng chung của bạn
 
 export default function ProductEditor({
   value,
@@ -27,7 +28,6 @@ export default function ProductEditor({
         suffix: '.min',
 
         // 🔥 FIX LỖI MOBILE TRÊN ĐIỆN THOẠI:
-        // Định nghĩa các thuộc tính cốt lõi này cho mobile để tránh lỗi đọc thuộc tính '.length' của undefined
         mobile: {
           menubar: false,
           plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'media', 'table', 'code', 'fullscreen'],
@@ -43,6 +43,34 @@ export default function ProductEditor({
           'undo redo | blocks | bold italic forecolor | ' +
           'alignleft aligncenter alignright alignjustify | ' +
           'bullist numlist | table image media link | code fullscreen',
+
+        // 🟢 2. CẤU HÌNH BỘ CHẶN VÀ NÊN ẢNH TỰ ĐỘNG KHI CHÈN VÀO TINYMCE
+        images_upload_handler: async (blobInfo) => {
+          return new Promise(async (resolve, reject) => {
+            try {
+              // Lấy file blob thô từ TinyMCE khi user chèn ảnh
+              const rawBlob = blobInfo.blob();
+              
+              // Tạo đối tượng File hoàn chỉnh từ Blob để đưa vào hàm tiện ích
+              const rawFile = new File([rawBlob], blobInfo.filename(), { type: rawBlob.type });
+              
+              // Tiến hành nén qua hàm dùng chung (ép dung lượng tối đa về hẳn 0.8MB cho văn bản nhẹ)
+              const [compressedFile] = await compressImages([rawFile], 0.8);
+
+              // Đọc file đã nén và chuyển đổi sang dạng chuỗi Base64 siêu nhẹ
+              const reader = new FileReader();
+              reader.readAsDataURL(compressedFile);
+              reader.onloadend = () => {
+                const base64String = reader.result;
+                resolve(base64String); // Trả kết quả base64 đã tối ưu dung lượng cho TinyMCE nhúng vào editor
+              };
+              
+            } catch (error) {
+              console.error('🔴 Lỗi xử lý nén ảnh trong TinyMCE:', error);
+              reject('Không thể tối ưu dung lượng hình ảnh: ' + error.message);
+            }
+          });
+        },
 
         // Tối ưu hiển thị bảng bên trong khung soạn thảo
         content_style: `

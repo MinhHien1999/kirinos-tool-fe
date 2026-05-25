@@ -4,7 +4,6 @@ import Image from 'next/image';
 export default function ProductCard({ product }) {
   if (!product) return null;
   const imageUrl = product.image || '/no-image.png';
-
   return (
     <div className="group bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-300 h-full flex flex-col w-full">
       

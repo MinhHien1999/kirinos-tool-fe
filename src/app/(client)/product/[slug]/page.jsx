@@ -7,11 +7,15 @@ function buildGalleryItems(images = []) {
   if (!images || images.length === 0) {
     return [{ type: 'image', src: '/no-image.png', isMain: true }];
   }
-  return images.map((item) => ({
-    type: item.type || 'image',
-    src: item.url,
-    isMain: item.isMain,
-  }));
+
+  return images
+    .map((item) => ({
+      type: item.type || 'image',
+      src: item.url,
+      isMain: !!item.isMain, // Ép kiểu về boolean an toàn
+    }))
+    // 🔥 Sắp xếp: Đẩy ảnh có isMain: true lên vị trí đầu tiên đầu tiên
+    .sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0));
 }
 
 export default async function ProductDetail({ params }) {

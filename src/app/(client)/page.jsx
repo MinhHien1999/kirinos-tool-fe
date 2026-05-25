@@ -90,10 +90,18 @@ export default async function Page(props) {
           {/* Grid danh sách sản phẩm - Tự động co giãn theo kích thước thiết bị */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {products.map((product) => {
-              // Tìm ảnh hợp lệ từ mảng ảnh của Cloudinary hệ thống
-              const img = product.images?.find(
-                (i) => i.type === 'image' && isValidProductImageUrl(i.url),
+              
+              // 1. 🌟 Ưu tiên tìm tấm ảnh được đánh dấu tích dấu sao chính (isMain === true)
+              let img = product.images?.find(
+                (i) => i.type === 'image' && i.isMain === true && isValidProductImageUrl(i.url)
               );
+
+              // 2. 🌟 BACKUP: Nếu không có ảnh nào được chọn làm ảnh chính, lấy ảnh hợp lệ đầu tiên
+              if (!img) {
+                img = product.images?.find(
+                  (i) => i.type === 'image' && isValidProductImageUrl(i.url)
+                );
+              }
               
               return (
                 <Link
@@ -104,6 +112,7 @@ export default async function Page(props) {
                   <ProductCard
                     product={{
                       ...product,
+                      // Truyền trực tiếp URL ảnh chính đã tìm được xuống cho ProductCard
                       image: img?.url || product.image || '/no-image.png',
                     }}
                   />
