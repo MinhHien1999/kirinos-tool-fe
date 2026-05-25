@@ -122,7 +122,7 @@ export default function LoginPage() {
                 {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
               </button>
             </div>
-
+{/* 
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 Chưa có tài khoản?{' '}
@@ -133,7 +133,7 @@ export default function LoginPage() {
                   Đăng kí tại đây
                 </Link>
               </p>
-            </div>
+            </div> */}
           </form>
       </div>
     </div>
