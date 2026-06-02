@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, Search, Phone, Loader2 } from 'lucide-react';
+import { Menu, Search, Loader2 } from 'lucide-react';
 import axiosClient from '@/config/axios';
 import { isValidProductImageUrl } from '@/services/productService';
 
@@ -16,49 +16,44 @@ export default function Header() {
   const [showSuggest, setShowSuggest] = useState(false);
   const searchRef = useRef(null);
 
-  // Xử lý tìm kiếm gợi ý qua Axios (Debounce 300ms)
+  // Xử lý tìm kiếm gợi ý
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
       return;
     }
-
     const delay = setTimeout(async () => {
       setLoading(true);
       try {
-        // 🟢 Sử dụng axiosClient để đồng bộ IP/Domain API tự động
-        const res = await axiosClient.get(`/products/search?keyword=${encodeURIComponent(query)}`);
+        const res = await axiosClient.get(
+          `/products/search?keyword=${encodeURIComponent(query)}`,
+        );
         setResults(res.data?.data?.slice(0, 6) || []);
-      } catch (e) { 
-        console.error('Lỗi tìm kiếm gợi ý:', e.message); 
+      } catch (e) {
         setResults([]);
-      } finally { 
-        setLoading(false); 
+      } finally {
+        setLoading(false);
       }
     }, 300);
-
     return () => clearTimeout(delay);
   }, [query]);
 
-  // Đóng dropdown gợi ý khi click ra ngoài vùng tìm kiếm
+  // Đóng gợi ý khi click ra ngoài
   useEffect(() => {
-    const close = (e) => { 
+    const close = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
-        setShowSuggest(false); 
+        setShowSuggest(false);
       }
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  // Sự kiện mở Sidebar trên thiết bị di động
   const toggleSidebar = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     window.dispatchEvent(new Event('toggle-sidebar'));
   };
 
-  // Điều hướng khi nhấn Enter hoặc bấm nút tìm kiếm
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -66,111 +61,143 @@ export default function Header() {
     setShowSuggest(false);
   };
 
-  return (
-    <header className="sticky top-0 z-[20] w-full bg-green-700 text-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 h-16 lg:h-24 flex items-center justify-between gap-4">
-        
-        {/* KHỐI LOGO & NÚT HAMBURGER DI ĐỘNG */}
-        <div className="flex items-center gap-2 lg:w-1/4">
-          <button
-            onClick={toggleSidebar}
-            className="lg:hidden p-2 hover:bg-green-800 rounded-lg active:scale-90 transition-all text-white focus:outline-none"
-            aria-label="Mở menu"
-          >
-            <Menu size={26} />
-          </button>
-          <Link href="/" className="shrink-0">
-            <Image 
-              src="/logo.png" 
-              alt="Logo Kirinos" 
-              width={160} 
-              height={50} 
-              className="h-10 lg:h-14 w-auto object-contain" 
-              priority 
-            />
-          </Link>
-        </div>
+  // Thành phần Form tìm kiếm dùng chung cho cả PC và Mobile nhằm tránh lặp logic thừa
+  const SearchForm = () => (
+    <form onSubmit={handleSearchSubmit} className="relative w-full">
+      <input
+        type="text"
+        placeholder="Nhập từ khóa để tìm kiếm sản phẩm"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setShowSuggest(true);
+        }}
+        onFocus={() => setShowSuggest(true)}
+        className="w-full bg-gray-50 text-gray-900 rounded-lg py-2.5 px-4 pr-12 focus:outline-none focus:ring-1 focus:ring-gray-300 border border-gray-300 text-sm placeholder-gray-500 transition-all"
+      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        {loading && (
+          <Loader2 size={16} className="animate-spin text-gray-400" />
+        )}
+        <button type="submit" className="text-gray-400 hover:text-gray-600">
+          <Search size={20} />
+        </button>
+      </div>
+    </form>
+  );
 
-        {/* KHỐI THANH TÌM KIẾM TRUNG TÂM */}
-        <div className="flex-1 max-w-xl relative" ref={searchRef}>
-          <form onSubmit={handleSearchSubmit} className="relative w-full">
-            <input
-              type="text"
-              placeholder="Bạn tìm thiết bị gì?..."
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setShowSuggest(true); }}
-              onFocus={() => setShowSuggest(true)}
-              className="w-full bg-white text-gray-900 rounded-full py-2.5 px-5 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-inner placeholder-gray-400 border border-transparent transition-all"
-            />
-            
-            {/* Cụm icon trạng thái nằm gọn bên phải */}
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pr-1">
-              {loading && (
-                <Loader2 size={16} className="animate-spin text-gray-400 mr-1" />
-              )}
-              <button 
-                type="submit" 
-                className="bg-blue-600 hover:bg-blue-700 transition-colors p-2 rounded-full text-white shadow-md active:scale-95"
-                aria-label="Tìm kiếm"
+  // Thành phần Dropdown gợi ý kết quả tìm kiếm dùng chung
+  const SuggestionBox = () =>
+    showSuggest &&
+    query.trim() && (
+      <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 text-gray-900 overflow-hidden z-[110]">
+        {results.length > 0 ? (
+          results.map((product) => {
+            const firstValidImg = product.images?.find(
+              (i) => i.type === 'image' && isValidProductImageUrl(i.url),
+            );
+            const displayImg = firstValidImg?.url || '/no-image.png';
+
+            return (
+              <Link
+                key={product._id}
+                href={`/product/${product.slug}`}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                onClick={() => setShowSuggest(false)}
               >
-                <Search size={16} />
-              </button>
+                <img
+                  src={displayImg}
+                  alt=""
+                  className="w-8 h-8 object-cover rounded border"
+                />
+                <span className="text-sm font-medium text-gray-700 line-clamp-1">
+                  {product.name}
+                </span>
+              </Link>
+            );
+          })
+        ) : (
+          !loading && (
+            <div className="p-3 text-center text-xs text-gray-400 italic">
+              Không tìm thấy sản phẩm
             </div>
-          </form>
+          )
+        )}
+      </div>
+    );
 
-          {/* Ô gợi ý kết quả thông minh dưới thanh tìm kiếm */}
-          {showSuggest && query.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 text-gray-900 overflow-hidden z-[110] transition-all animate-in fade-in slide-in-from-top-1 duration-200">
-              {results.length > 0 ? (
-                results.map((product) => {
-                  // Lọc ảnh hợp lệ từ mảng images cũ giống cấu trúc trang chủ
-                  const firstValidImg = product.images?.find(i => i.type === 'image' && isValidProductImageUrl(i.url));
-                  const displayImg = firstValidImg?.url || product.image || '/no-image.png';
+  return (
+    <header className="sticky top-0 z-[20] w-full bg-[#41995b] shadow-sm border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 py-3.5" ref={searchRef}>
+        
+        {/* HÀNG CHÍNH */}
+        <div className="flex items-center justify-between lg:gap-8 mb-3 lg:mb-0">
+          
+          {/* KHỐI LOGO */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={toggleSidebar}
+              className="lg:hidden p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+              aria-label="Mở menu"
+            >
+              <Menu size={24} />
+            </button>
+            <Link href="/" className="shrink-0">
+              <Image
+                src="/logo.png"
+                alt="Logo Kirinos"
+                width={200}
+                height={70}
+                className="h-24 lg:h-24 w-auto object-contain transition-all duration-200"
+                priority
+              />
+            </Link>
+          </div>
 
-                  return (
-                    <Link 
-                      key={product._id} 
-                      href={`/product/${product.slug}`} 
-                      className="flex items-center gap-3.5 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors group"
-                      onClick={() => setShowSuggest(false)}
-                    >
-                      <div className="relative w-9 h-9 border border-gray-100 rounded-lg overflow-hidden shrink-0 bg-gray-50">
-                        <img 
-                          src={displayImg} 
-                          alt={product.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                        />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                        {product.name}
-                      </span>
-                    </Link>
-                  );
-                })
-              ) : (
-                !loading && (
-                  <div className="p-4 text-center text-sm text-gray-400 italic">
-                    Không tìm thấy thiết bị phù hợp
-                  </div>
-                )
-              )}
-            </div>
-          )}
-        </div>
+          {/* 🟢 THANH TÌM KIẾM TRÊN PC: Ẩn trên mobile, hiện và căn giữa ở PC */}
+          <div className="hidden lg:block flex-1 max-w-xl relative">
+            <SearchForm />
+            <SuggestionBox />
+          </div>
 
-        {/* KHỐI ĐIỆN THOẠI HOTLINE */}
-        <div className="hidden lg:flex lg:w-1/4 justify-end">
-          <div className="bg-green-800/80 px-4 py-2 rounded-xl flex items-center gap-3 border border-green-600/30 shadow-inner">
-            <div className="bg-green-700 p-1.5 rounded-lg text-green-300">
-              <Phone size={16} />
-            </div>
-            <div className="leading-tight">
-              <p className="text-[10px] uppercase font-semibold tracking-wider text-green-200 mb-0.5">Liên hệ</p>
-              <p className="font-bold text-[15px] tracking-wide text-white">0784 688 993</p>
+          {/* KHỐI HOTLINE */}
+          <div className="text-left flex flex-col justify-center gap-0.5 shrink-0">
+            <div className="bg-red-50 px-4 py-2 rounded-xl flex items-center gap-3 border border-red-100 shadow-sm">
+              <div className="bg-red-200/60 p-1.5 rounded-lg text-red-700">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-phone"
+                  aria-hidden="true"
+                >
+                  <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path>
+                </svg>
+              </div>
+              <div className="leading-tight">
+                <p className="text-[10px] uppercase font-semibold tracking-wider text-gray-500 mb-0.5">
+                  Liên hệ
+                </p>
+                <p className="font-bold text-[15px] tracking-wide text-red-600">
+                  0784 688 993
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* 🟢 THANH TÌM KIẾM TRÊN MOBILE: Hiện trên mobile (`block`), ẩn hoàn toàn trên PC (`lg:hidden`) */}
+        <div className="block lg:hidden relative">
+          <SearchForm />
+          <SuggestionBox />
+        </div>
+        
       </div>
     </header>
   );
