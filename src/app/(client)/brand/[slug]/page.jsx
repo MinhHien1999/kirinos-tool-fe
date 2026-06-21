@@ -2,16 +2,20 @@ import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 import { 
-  fetchBrandBySlug, 
-  fetchProductsByBrandId, 
+  fetchProductsByBrandSlug, 
   isValidProductImageUrl 
 } from '@/services/productService';
 
 export default async function BrandPage({ params, searchParams }) {
-  // Giải nén các parameters bất đồng bộ (Cơ chế bắt buộc trên Next.js 15+)
+  // 1. Giải nén các parameters bất đồng bộ (Bắt buộc từ Next.js 15+)
   const { slug } = await params;
-  const brand = await fetchBrandBySlug(slug);
+  const sParams = await searchParams;
+  const currentPage = parseInt(sParams?.page) || 1;
 
+  // 2. Gọi hàm Service (Service bên trong sẽ fetch request tới route Backend: /brands/${slug}/products)
+  const { brand, products, pagination } = await fetchProductsByBrandSlug(slug, currentPage, 12);
+
+  // 3. Nếu không tồn tại thương hiệu, render thông báo lỗi
   if (!brand) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center text-center p-6">
@@ -29,24 +33,14 @@ export default async function BrandPage({ params, searchParams }) {
     );
   }
 
-  // Phân tích số trang hiện tại từ URL query (?page=X)
-  const sParams = await searchParams;
-  const currentPage = parseInt(sParams?.page) || 1;
-
-  const brandId = brand._id || brand.id || brand.slug;
-  
-  // Gọi API phân trang từ lớp dịch vụ Axios trung tâm
-  const { products, pagination } = await fetchProductsByBrandId(brandId, currentPage);
-
   const totalPages = pagination.totalPages || 1;
   const totalProducts = pagination.totalItems || 0;
 
   /**
    * Thuật toán thu gọn số trang thông minh (Ví dụ: 1 2 ... 7 8)
-   * Ngăn chặn hoàn toàn lỗi tràn dòng, nát khung trên màn hình Mobile khi số trang lớn
    */
   const getPaginationRange = () => {
-    const delta = 1; // Số trang hiển thị xung quanh trang hiện tại
+    const delta = 1;
     const range = [];
     const rangeWithDots = [];
     let l;
@@ -74,7 +68,7 @@ export default async function BrandPage({ params, searchParams }) {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Breadcrumb tối giản, đồng bộ cấu hình */}
+      {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-[13px] text-gray-500 px-2 tracking-wide">
         <Link href="/" className="hover:text-blue-600 transition-colors">Trang chủ</Link>
         <span className="text-gray-300">/</span>
@@ -83,7 +77,7 @@ export default async function BrandPage({ params, searchParams }) {
         <span className="text-gray-900 font-medium">{brand.name}</span>
       </nav>
 
-      {/* Header thông tin thương hiệu */}
+      {/* Header thương hiệu */}
       <div className="px-2">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{brand.name}</h1>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-50 pb-4">
@@ -114,7 +108,7 @@ export default async function BrandPage({ params, searchParams }) {
         </div>
       ) : (
         <>
-          {/* Lưới sản phẩm - Đáp ứng Grid Responsive mượt mà */}
+          {/* Grid hiển thị sản phẩm */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8 justify-items-center">
             {products.map((product) => {
               const imageItem = product.images?.find(
@@ -139,14 +133,14 @@ export default async function BrandPage({ params, searchParams }) {
             })}
           </div>
 
-          {/* Thanh điều hướng phân trang Server-side - Khắc phục triệt để lỗi định tuyến trên Vercel */}
+          {/* 🟢 Thanh phân trang: Giữ cố định route hiển thị của Frontend là /brand/[slug] */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-12 pt-8 border-t border-gray-100 select-none">
               
-              {/* Nút lùi trang trước (Prev) */}
+              {/* Nút lùi (Prev) */}
               {currentPage > 1 ? (
                 <Link
-                  href={`/brand/${slug}?page=${currentPage - 1}`} // 🟢 Fix: Ép đường dẫn tuyệt đối kèm slug thương hiệu
+                  href={`/brand/${slug}?page=${currentPage - 1}`}
                   className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all text-gray-600"
                 >
                   <ChevronLeft size={20} />
@@ -157,7 +151,7 @@ export default async function BrandPage({ params, searchParams }) {
                 </div>
               )}
 
-              {/* Danh sách số trang co giãn thông minh */}
+              {/* Số trang */}
               <div className="flex items-center gap-1">
                 {getPaginationRange().map((item, index) => {
                   if (item === '...') {
@@ -175,7 +169,7 @@ export default async function BrandPage({ params, searchParams }) {
                   return (
                     <Link
                       key={`page-${item}`}
-                      href={`/brand/${slug}?page=${item}`} // 🟢 Fix: Giữ cố định route cha để không bị nhảy trang lỗi trên Vercel
+                      href={`/brand/${slug}?page=${item}`}
                       className={`min-w-[40px] h-10 rounded-lg text-sm font-bold flex items-center justify-center transition-all ${
                         isActive
                           ? 'bg-blue-600 text-white shadow-md shadow-blue-100'
@@ -188,10 +182,10 @@ export default async function BrandPage({ params, searchParams }) {
                 })}
               </div>
 
-              {/* Nút tiến trang tiếp theo (Next) */}
+              {/* Nút tiến (Next) */}
               {currentPage < totalPages ? (
                 <Link
-                  href={`/brand/${slug}?page=${currentPage + 1}`} // 🟢 Fix: Chỉ định rõ route tuyệt đối khi sang trang mới
+                  href={`/brand/${slug}?page=${currentPage + 1}`}
                   className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all text-gray-600"
                 >
                   <ChevronRight size={20} />

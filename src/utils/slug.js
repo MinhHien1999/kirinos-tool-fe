@@ -1,19 +1,15 @@
-// Utility function to generate slug from text
+import slugify from 'slugify';
+
 export const generateSlug = (text) => {
   if (!text) return '';
-
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    // Remove accents and diacritics
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    // Replace spaces and special characters with hyphens
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+  
+  return slugify(text, {
+    replacement: '-',  // Thay khoảng trắng bằng dấu -
+    remove: /[*+~.()'"!:@]/g, // Loại bỏ các ký tự dấu câu thô
+    lower: true,       // Chuyển về chữ thường
+    strict: true,      // Xóa bỏ hoàn toàn các ký tự đặc biệt ẩn khác
+    locale: 'vi'       // 🟢 BẢO ĐẢM: Ép chữ tiếng Việt và chữ Đ chuẩn tuyệt đối
+  });
 };
 
 // Generate random slug with timestamp

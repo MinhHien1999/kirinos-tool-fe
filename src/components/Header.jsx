@@ -4,41 +4,47 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, Search, Loader2 } from 'lucide-react';
-import axiosClient from '@/config/axios';
-import { isValidProductImageUrl } from '@/services/productService';
+import { Menu, Search, Loader2, SearchCode } from 'lucide-react';
+import { fetchSearchSuggestions, isValidProductImageUrl } from '@/services/productService';
 
 export default function Header() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [totalItems, setTotalItems] = useState(0); // 🟢 Lưu trữ tổng số lượng tìm thấy trong DB
   const [loading, setLoading] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
   const searchRef = useRef(null);
 
-  // Xử lý tìm kiếm gợi ý
+  // Xử lý lấy gợi ý tìm kiếm nhanh (Debounce 300ms chuẩn UI/UX, gõ đến đâu mượt đến đấy)
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setTotalItems(0);
+      setLoading(false);
       return;
     }
+    
+    setLoading(true);
     const delay = setTimeout(async () => {
-      setLoading(true);
       try {
-        const res = await axiosClient.get(
-          `/products/search?keyword=${encodeURIComponent(query)}`,
-        );
-        setResults(res.data?.data?.slice(0, 6) || []);
-      } catch (e) {
+        // API mới trả về cấu trúc phẳng: { data: [...5 cái], totalItems: X }
+        const res = await fetchSearchSuggestions(query);
+        setResults(res.data || []);
+        setTotalItems(res.totalItems || 0);
+      } catch (error) {
+        console.error('🔴 Lỗi gọi gợi ý tìm kiếm nhanh tại Header:', error);
         setResults([]);
+        setTotalItems(0);
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 300); // 🟢 Chỉnh lại 300ms gõ chữ cho nhạy, 2000ms quá chậm
+
     return () => clearTimeout(delay);
   }, [query]);
 
-  // Đóng gợi ý khi click ra ngoài
+  // Đóng hộp gợi ý khi click ra ngoài vùng tìm kiếm
   useEffect(() => {
     const close = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
@@ -54,6 +60,7 @@ export default function Header() {
     window.dispatchEvent(new Event('toggle-sidebar'));
   };
 
+  // Điều hướng khi bấm Enter hoặc click icon Tìm kiếm -> Chuyển sang trang search tổng
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -61,11 +68,12 @@ export default function Header() {
     setShowSuggest(false);
   };
 
-  // Thành phần Form tìm kiếm dùng chung cho cả PC và Mobile nhằm tránh lặp logic thừa
-  const SearchForm = () => (
+  // Hàm render Form tìm kiếm dùng chung
+  const renderSearchForm = () => (
     <form onSubmit={handleSearchSubmit} className="relative w-full">
       <input
         type="text"
+        autoComplete="off"
         placeholder="Nhập từ khóa để tìm kiếm sản phẩm"
         value={query}
         onChange={(e) => {
@@ -86,58 +94,92 @@ export default function Header() {
     </form>
   );
 
-  // Thành phần Dropdown gợi ý kết quả tìm kiếm dùng chung
-  const SuggestionBox = () =>
-    showSuggest &&
-    query.trim() && (
-      <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 text-gray-900 overflow-hidden z-[110]">
-        {results.length > 0 ? (
-          results.map((product) => {
-            const firstValidImg = product.images?.find(
-              (i) => i.type === 'image' && isValidProductImageUrl(i.url),
-            );
-            const displayImg = firstValidImg?.url || '/no-image.png';
+  // Hàm render Hộp gợi ý kết quả tìm kiếm thông minh (Dropdown)
+  const renderSuggestionBox = () => {
+    if (!showSuggest || !query.trim()) return null;
 
-            return (
+    return (
+      <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 text-gray-900 overflow-hidden z-[110]">
+        
+        {/* 1. Trạng thái đang tải dữ liệu lần đầu */}
+        {loading && results.length === 0 && (
+          <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+            <Loader2 size={16} className="animate-spin text-[#41995b]" />
+            <span>Đang tìm kiếm sản phẩm...</span>
+          </div>
+        )}
+
+        {/* 2. Trạng thái đã có dữ liệu sản phẩm phù hợp */}
+        {results.length > 0 && (
+          <>
+            <div className="max-h-[350px] overflow-y-auto">
+              {results.map((product) => {
+                const firstValidImg = product.images?.find(
+                  (i) => i.type === 'image' && isValidProductImageUrl(i.url),
+                );
+                const displayImg = firstValidImg?.url || product.image || '/no-image.png';
+
+                return (
+                  <Link
+                    key={product._id}
+                    href={`/product/${product.slug}`}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors"
+                    onClick={() => setShowSuggest(false)}
+                  >
+                    {/* Khung bọc ảnh vuông vắn cố định kích thước */}
+                    <div className="w-9 h-9 relative rounded border border-gray-100 flex-shrink-0 overflow-hidden bg-gray-50">
+                      <Image
+                        src={displayImg}
+                        alt={product.name || 'Product Image'}
+                        fill
+                        sizes="36px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 line-clamp-1 hover:text-blue-600">
+                      {product.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* 🟢 KHỐI NÚT XEM TẤT CẢ: Hiện nút nếu tổng số item trong DB lớn hơn số lượng hiển thị (5 cái) */}
+            {totalItems > results.length && (
               <Link
-                key={product._id}
-                href={`/product/${product.slug}`}
-                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                href={`/search?keyword=${encodeURIComponent(query.trim())}`}
+                className="block text-center py-2.5 bg-gray-50 border-t border-gray-100 text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors"
                 onClick={() => setShowSuggest(false)}
               >
-                <img
-                  src={displayImg}
-                  alt=""
-                  className="w-8 h-8 object-cover rounded border"
-                />
-                <span className="text-sm font-medium text-gray-700 line-clamp-1">
-                  {product.name}
-                </span>
+                {"Xem tất cả "}{totalItems}{" kết quả tìm kiếm cho \""}{query.trim()}{"\""}
               </Link>
-            );
-          })
-        ) : (
-          !loading && (
-            <div className="p-3 text-center text-xs text-gray-400 italic">
-              Không tìm thấy sản phẩm
-            </div>
-          )
+            )}
+          </>
+        )}
+
+        {/* 3. Trạng thái tải xong nhưng hoàn toàn trống */}
+        {!loading && results.length === 0 && (
+          <div className="p-4 text-center text-xs text-gray-400 italic flex items-center justify-center gap-1.5">
+            <span>Không tìm thấy sản phẩm phù hợp</span>
+          </div>
         )}
       </div>
     );
+  };
 
   return (
-    <header className="sticky top-0 z-[20] w-full bg-[#41995b] shadow-sm border-b border-gray-100">
+    <header className="sticky top-0 z-[20] w-full bg-[#41995b] shadow-sm border-b border-b-black/5">
       <div className="max-w-7xl mx-auto px-4 py-3.5" ref={searchRef}>
         
-        {/* HÀNG CHÍNH */}
+        {/* HÀNG CHÍNH (Giao diện PC) */}
         <div className="flex items-center justify-between lg:gap-8 mb-3 lg:mb-0">
           
-          {/* KHỐI LOGO */}
+          {/* KHỐI LOGO & MENU MOBILE */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={toggleSidebar}
-              className="lg:hidden p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+              className="lg:hidden p-1.5 text-white hover:bg-[#347a49] rounded transition-colors"
               aria-label="Mở menu"
             >
               <Menu size={24} />
@@ -148,19 +190,19 @@ export default function Header() {
                 alt="Logo Kirinos"
                 width={200}
                 height={70}
-                className="h-24 lg:h-24 w-auto object-contain transition-all duration-200"
+                className="h-16 lg:h-20 w-auto object-contain transition-all duration-200"
                 priority
               />
             </Link>
           </div>
 
-          {/* 🟢 THANH TÌM KIẾM TRÊN PC: Ẩn trên mobile, hiện và căn giữa ở PC */}
+          {/* THANH TÌM KIẾM TRÊN PC */}
           <div className="hidden lg:block flex-1 max-w-xl relative">
-            <SearchForm />
-            <SuggestionBox />
+            {renderSearchForm()}
+            {renderSuggestionBox()}
           </div>
 
-          {/* KHỐI HOTLINE */}
+          {/* HOTLINE LIÊN HỆ */}
           <div className="text-left flex flex-col justify-center gap-0.5 shrink-0">
             <div className="bg-red-50 px-4 py-2 rounded-xl flex items-center gap-3 border border-red-100 shadow-sm">
               <div className="bg-red-200/60 p-1.5 rounded-lg text-red-700">
@@ -192,10 +234,10 @@ export default function Header() {
           </div>
         </div>
 
-        {/* 🟢 THANH TÌM KIẾM TRÊN MOBILE: Hiện trên mobile (`block`), ẩn hoàn toàn trên PC (`lg:hidden`) */}
-        <div className="block lg:hidden relative">
-          <SearchForm />
-          <SuggestionBox />
+        {/* THANH TÌM KIẾM TRÊN MOBILE */}
+        <div className="block lg:hidden relative mt-1">
+          {renderSearchForm()}
+          {renderSuggestionBox()}
         </div>
         
       </div>
