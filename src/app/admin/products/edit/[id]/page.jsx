@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { NumericFormat } from 'react-number-format';
+
 import { generateSlug } from '@/utils/slug.js';
 import ProductEditor from '@/components/ProductEditor';
 import OldImagesManager from '@/components/OldImagesManager';
@@ -24,6 +26,7 @@ export default function AdminEditProduct({ params: paramsPromise }) {
 
   const [form, setForm] = useState({
     name: '',
+    price: 0,
     slug: '',
     brand: '',
     category: '',
@@ -93,6 +96,7 @@ export default function AdminEditProduct({ params: paramsPromise }) {
 
           setForm({
             name: productData.name || '',
+            price: productData.price || 0,
             slug: productData.slug || '',
             brand: productData.brand?._id || productData.brand || '',
             category: productData.category?._id || productData.category || '',
@@ -154,6 +158,7 @@ export default function AdminEditProduct({ params: paramsPromise }) {
     try {
       const formData = new FormData();
       formData.append('name', form.name);
+      formData.append('price', form.price);
       formData.append('slug', form.slug);
       formData.append('brand', form.brand);
       formData.append('category', form.category);
@@ -306,6 +311,31 @@ export default function AdminEditProduct({ params: paramsPromise }) {
           onRemove={handleRemoveOldImage} 
           onSetMain={handleSetMainImage} 
         />
+
+        <div className="space-y-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700">Giá tiền sản phẩm <b>(đơn vị: VNĐ)</b> </label>
+          </div>
+          <div className="space-y-2">
+            <div className="flex gap-2 items-center">
+              <NumericFormat
+                value={form.price || 0}
+                onValueChange={(values) => {
+                  // values.floatValue tự động trả về giá trị kiểu Number (ví dụ: 1000000)
+                  setForm({ ...form, price: values.floatValue || 0 });
+                }}
+                thousandSeparator="." // Phân cách 3 chữ số bằng 1 khoảng trắng
+                decimalSeparator=","   // Đổi dấu thập phân sang dấu phẩy để tránh trùng với thousandSeparator
+                allowNegative={false} // Chặn hoàn toàn số âm
+                decimalScale={0}      // Chỉ nhận số nguyên (loại bỏ dấu thập phân)
+                suffix=" đ"
+                placeholder="Nhập giá tiền sản phẩm"
+                required
+                className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 text-gray-900"
+              />
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-1">
           <label className="text-sm font-medium text-gray-700">Mô tả chi tiết</label>

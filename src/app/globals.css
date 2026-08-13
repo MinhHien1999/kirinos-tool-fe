@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 :root {
+  /* Khóa màu nền sáng và chữ tối đồng nhất cho mọi thiết bị */
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -12,18 +13,28 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* 
+  Nếu bạn MUỐN tự động chuyển Dark Mode theo máy thì bỏ comment đoạn dưới. 
+  Nếu MUỐN web luôn luôn hiển thị nền trắng trên mọi thiết bị thì giữ nguyên comment này.
+*/
+/* 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} 
+*/
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ======================================================
+   🟢 FIX BẢNG & BÀI VIẾT TỪ TINYMCE (Khung .prose)
+   ====================================================== */
 .prose h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -64,6 +75,34 @@ body {
   margin: 1rem 0;
 }
 
+/* 🔥 FIX BẢNG TINYMCE BỊ MẤT VIỀN / DÍNH CHỮ TRÊN CLIENT */
+.prose table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.prose table,
+.prose th,
+.prose td {
+  border: 1px solid #111827 !important; /* Tạo viền đen/xám rõ nét */
+}
+
+.prose th,
+.prose td {
+  padding: 10px 14px !important; /* Giãn khoảng cách chữ trong ô */
+  vertical-align: top;
+}
+
+.prose th {
+  background-color: #f9fafb;
+  font-weight: 700;
+}
+
+/* ======================================================
+   🟢 XỬ LÝ FORM INPUT & AUTOFILL
+   ====================================================== */
 /* Ép tất cả các thẻ nhập liệu trong toàn hệ thống phải hiển thị chữ màu tối */
 input,
 textarea,

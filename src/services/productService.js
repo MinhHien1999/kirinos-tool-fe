@@ -1,6 +1,6 @@
 import axiosClient from '@/config/axios';
 
-export const PAGINATION_LIMIT = 4;
+export const ITEMS_LIMIT = 12;
 
 export function isValidProductImageUrl(url) {
   if (!url) return false;
@@ -16,7 +16,7 @@ export async function fetchHomeProducts(page) {
     const result = await axiosClient.get('/products/client', {
       params: {
         page: page,
-        limit: 12,
+        limit: ITEMS_LIMIT,
       },
     });
 
@@ -113,12 +113,11 @@ export async function fetchProductsByCategorySlug(categorySlug, page = 1) {
     const response = await axiosClient.get(`/categories/${categorySlug}/products`, {
       params: {
         page: page,
-        limit: PAGINATION_LIMIT || 12, // Dùng hằng số của bạn hoặc fallback về 12
+        limit: ITEMS_LIMIT, // Dùng hằng số của bạn hoặc fallback về 12
       },
     });
     // 2. Trích xuất dữ liệu từ lớp bọc `response.data.data` của Axios + cấu trúc Controller mới
     const apiData = response?.data;
-    console.log('data:', apiData);
     return {
       category: apiData?.category || null, // Trả thêm thông tin danh mục về cho Client làm UI Title
       products: apiData?.products || [],
@@ -138,10 +137,9 @@ export async function fetchProductsByCategorySlug(categorySlug, page = 1) {
  * Frontend Service: Lấy danh sách sản phẩm theo Brand Slug (Có phân trang)
  * @param {string} brandSlug - Slug của thương hiệu cần lấy sản phẩm (Ví dụ: 'kapusi')
  * @param {number} page - Trang hiện tại cần tải (Mặc định là 1)
- * @param {number} limit - Số lượng sản phẩm trên một trang (Mặc định là 12)
  * @returns {Promise<{brand: Object|null, products: Array, pagination: Object}>}
  */
-export async function fetchProductsByBrandSlug(brandSlug, page = 1, limit = 12) {
+export async function fetchProductsByBrandSlug(brandSlug, page = 1) {
   try {
     // 1. Kiểm tra nhanh ở FE để chặn request thừa nếu thiếu slug
     if (!brandSlug) {
@@ -153,7 +151,7 @@ export async function fetchProductsByBrandSlug(brandSlug, page = 1, limit = 12) 
     const response = await axiosClient.get(`/brands/${brandSlug}/products`, {
       params: {
         page: page,
-        limit: limit,
+        limit: ITEMS_LIMIT,
       },
     });
 
@@ -215,7 +213,7 @@ export async function fetchProductsByBrandId(brandId, page) {
       params: {
         brand: brandId,
         page: page,
-        limit: 4,
+        limit: ITEMS_LIMIT,
       }
     });
 
@@ -232,7 +230,7 @@ export async function fetchProductsByBrandId(brandId, page) {
 /**
  * Lấy danh sách sản phẩm phục vụ Admin (Hỗ trợ phân trang và tìm kiếm từ khóa)
  */
-export async function fetchAdminProducts(page = 1, limit = 10, searchKey = '') {
+export async function fetchAdminProducts(page = 1, limit = 6, searchKey = '') {
   try {
     const result = await axiosClient.get('/products', {
       params: {
@@ -336,7 +334,7 @@ export async function fetchSearchSuggestions(keyword) {
 /**
  * Lấy danh sách sản phẩm tìm kiếm phân trang dành riêng cho Client
  */
-export async function fetchProductsBySearchForClient(keyword, page = 1, limit = 12) {
+export async function fetchProductsBySearchForClient(keyword, page = 1, limit = ITEMS_LIMIT) {
   try {
     if (!keyword || !keyword.trim()) {
       return { products: [], pagination: { totalPages: 1, totalItems: 0, currentPage: page, limit } };

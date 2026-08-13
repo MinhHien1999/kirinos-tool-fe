@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import ProductGallery from '@/components/ProductGallery';
+import ProductPrice from '@/components/ProductPrice'; // 👈 Import component mới
 import { fetchProductDetailBySlug } from '@/services/productService';
 
-// Chuẩn hóa dữ liệu cho component hiển thị ảnh Gallery (Xử lý fallback an toàn)
 function buildGalleryItems(images = []) {
   if (!images || images.length === 0) {
     return [{ type: 'image', src: '/no-image.png', isMain: true }];
@@ -12,17 +12,13 @@ function buildGalleryItems(images = []) {
     .map((item) => ({
       type: item.type || 'image',
       src: item.url,
-      isMain: !!item.isMain, // Ép kiểu về boolean an toàn
+      isMain: !!item.isMain,
     }))
-    // 🔥 Sắp xếp: Đẩy ảnh có isMain: true lên vị trí đầu tiên đầu tiên
     .sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0));
 }
 
 export default async function ProductDetail({ params }) {
-  // Giải nén params đồng bộ theo cơ chế nghiêm ngặt của Next.js 15+
   const { slug } = await params;
-
-  // Gọi hàm lấy dữ liệu siêu tốc bằng Axios Service
   const product = await fetchProductDetailBySlug(slug);
 
   if (!product) {
@@ -41,12 +37,10 @@ export default async function ProductDetail({ params }) {
     );
   }
 
-  // Khắc phục lỗi: Đảm bảo truyền mảng an toàn ngay cả khi API trả về null/undefined
   const galleryItems = buildGalleryItems(product.images || []);
 
   return (
     <div className="space-y-6">
-      {/* 🟢 Tối ưu: Thanh Breadcrumb điều hướng đồng bộ tone màu xanh thương hiệu */}
       <nav className="flex items-center gap-2 text-[13px] text-gray-500 font-medium px-2 tracking-wide">
         <Link href="/" className="hover:text-blue-600 transition-colors">
           Trang chủ
@@ -60,15 +54,12 @@ export default async function ProductDetail({ params }) {
       </nav>
 
       <div className="space-y-8">
-        {/* Khung thông tin mua hàng chính */}
         <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="grid gap-10 lg:grid-cols-2">
-            {/* Gallery hiển thị hình ảnh */}
             <div className="w-full">
               <ProductGallery items={galleryItems} />
             </div>
 
-            {/* Thông tin chi tiết cấu hình */}
             <div className="flex flex-col justify-between">
               <div>
                 <div className="mb-4">
@@ -108,7 +99,6 @@ export default async function ProductDetail({ params }) {
                   </div>
                 </div>
 
-                {/* Khối thông số kỹ thuật (Specs) rút gọn */}
                 {product.specs && product.specs.length > 0 && (
                   <div className="mb-8 grid grid-cols-1 gap-2">
                     {product.specs.slice(0, 5).map((spec, index) => (
@@ -128,17 +118,14 @@ export default async function ProductDetail({ params }) {
                 )}
               </div>
 
-              {/* 🟢 Tối ưu: Nút CTA chuẩn màu xanh dương Kirinos và đổ bóng mượt mà */}
+              {/* 🟢 Render Client Component hiển thị giá tiền */}
               <div className="mt-6 lg:mt-0">
-                <button className="w-full rounded-2xl bg-blue-600 px-12 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-xl shadow-blue-100 transition-all hover:bg-blue-700 lg:w-max active:scale-[0.98]">
-                  Liên hệ báo giá
-                </button>
+                <ProductPrice price={product.price} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Khối bài viết giới thiệu/mô tả chi tiết sản phẩm */}
         <div className="mt-12">
           <div className="text-center mb-8">
             <h2 className="relative inline-block text-2xl font-bold text-gray-900 pb-2">
