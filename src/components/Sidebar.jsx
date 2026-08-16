@@ -11,7 +11,7 @@ export default function Sidebar() {
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -24,6 +24,10 @@ export default function Sidebar() {
 
   const sidebarContainerRef = useRef(null);
   const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchCategories = useCallback(async (pageNum) => {
     setIsLoading(true);
@@ -57,7 +61,6 @@ export default function Sidebar() {
       setIsError(true);
     } finally {
       setIsLoading(false);
-      setMounted(true);
     }
   }, []);
 
@@ -95,21 +98,16 @@ export default function Sidebar() {
     setHoveredCategory(null);
   };
 
-  // 🎯 TÍNH VỊ TRÍ TOP CHUẨN XÁC ĐỂ MENU CON THẲNG HÀNG VỚI DANH MỤC CHA
   const handleItemMouseEnter = (cat, e) => {
     setHoveredCategory(cat);
     
     if (sidebarContainerRef.current) {
       const sidebarRect = sidebarContainerRef.current.getBoundingClientRect();
       const itemRect = e.currentTarget.getBoundingClientRect();
-      
-      // Khoảng cách từ mép trên của Sidebar đến mép trên của danh mục đang hover
       const relativeTop = itemRect.top - sidebarRect.top;
       setFlyoutTop(relativeTop);
     }
   };
-
-  if (!mounted) return null;
 
   const handleCloseMobile = () => {
     setIsOpen(false);
@@ -118,22 +116,10 @@ export default function Sidebar() {
 
   return (
     <>
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none !important;
-          width: 0 !important;
-          height: 0 !important;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none !important;
-          scrollbar-width: none !important;
-        }
-      `}</style>
-
       {/* OVERLAY MOBILE */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/50 z-60 lg:hidden backdrop-blur-sm transition-opacity"
           onClick={handleCloseMobile}
         />
       )}
@@ -142,8 +128,8 @@ export default function Sidebar() {
       <aside
         ref={sidebarContainerRef}
         className={`
-          fixed inset-y-0 left-0 z-[70] w-80 bg-white transition-transform duration-300 ease-in-out
-          lg:static lg:translate-x-0 lg:w-72 lg:shrink-0 lg:z-10 lg:sticky lg:top-20 lg:relative
+          fixed inset-y-0 left-0 z-70 w-80 bg-white transition-transform duration-300 ease-in-out
+          lg:static lg:translate-x-0 lg:w-72 lg:shrink-0 lg:z-10 lg:top-20
           h-screen lg:h-[calc(100vh-6rem)] flex flex-col min-h-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -171,11 +157,13 @@ export default function Sidebar() {
           </div>
 
           {/* HEADER DESKTOP */}
-          <div className="p-3 pb-0 hidden lg:block shrink-0">
-            <h2 className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest pt-2 px-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              Danh mục
-            </h2>
+          <div className="p-3 pb-1 hidden lg:block shrink-0">
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-green-50/70 border border-green-100/80">
+              <span className="w-2 h-2 rounded-full bg-green-600 shrink-0" />
+              <h2 className="text-sm font-bold text-green-900 tracking-normal">
+                Danh mục sản phẩm
+              </h2>
+            </div>
           </div>
 
           {/* DANH SÁCH DANH MỤC */}
@@ -184,7 +172,19 @@ export default function Sidebar() {
             onScroll={handleScroll}
             className="p-3 overflow-y-auto no-scrollbar flex-1 min-h-0"
           >
-            {isError && categories.length === 0 ? (
+            {(!mounted || (isLoading && categories.length === 0)) ? (
+              <div className="flex flex-col gap-2 animate-pulse p-1">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-gray-100/80">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-gray-200 rounded-md" />
+                      <div className="h-4 bg-gray-200 rounded w-32" />
+                    </div>
+                    <div className="w-3 h-3 bg-gray-200 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : isError && categories.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-5 text-center border border-dashed border-red-200 rounded-2xl bg-red-50/50">
                 <WifiOff size={22} className="text-red-400 mb-1.5" />
                 <p className="text-xs font-bold text-red-700">Lỗi kết nối dữ liệu</p>
@@ -208,7 +208,7 @@ export default function Sidebar() {
                                   <LayoutGrid size={18} className="text-green-600 shrink-0" />
                                   <span>{cat.name}</span>
                                 </div>
-                                <ChevronRight size={16} className="text-gray-400" />
+                                <ChevronRight size={16} className="text-gray-900" />
                               </button>
                             ) : (
                               <Link
@@ -285,7 +285,7 @@ export default function Sidebar() {
                             <ChevronRight
                               size={16}
                               className={`transition-transform duration-200 ${
-                                isHovered ? 'text-green-600 translate-x-0.5' : 'text-gray-300'
+                                isHovered ? 'text-green-600 translate-x-0.5' : 'text-gray-900'
                               }`}
                             />
                           )}
@@ -306,15 +306,14 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* 🟢 MEGA MENU FLYOUT CHUẨN VỊ TRÍ VA CÓ CẦU NỐI HOÀN HẢO */}
+        {/* MEGA MENU FLYOUT */}
         {hoveredCategory && hoveredCategory.children?.length > 0 && (
           <div
-            className="hidden lg:block absolute left-full pl-4 w-[520px] z-50 transition-all duration-75"
+            className="hidden lg:block absolute left-full pl-4 w-130 z-50 transition-all duration-75"
             style={{ top: `${flyoutTop}px` }}
             onMouseEnter={() => setHoveredCategory(hoveredCategory)}
             onMouseLeave={() => setHoveredCategory(null)}
           >
-            {/* 🔗 CẦU NỐI VÔ HÌNH: Đảm bảo rê chuột ngang không bị chập chờn hay mất menu */}
             <div className="absolute top-0 -left-6 bottom-0 w-8 bg-transparent" />
 
             <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 w-full relative">
@@ -331,7 +330,7 @@ export default function Sidebar() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 max-h-[360px] overflow-y-auto no-scrollbar pr-2">
+              <div className="grid grid-cols-2 gap-2 max-h-90 overflow-y-auto no-scrollbar pr-2">
                 {hoveredCategory.children.map((child) => (
                   <Link
                     key={child._id || child.id}

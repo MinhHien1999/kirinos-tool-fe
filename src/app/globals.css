@@ -132,3 +132,14 @@ select:-webkit-autofill:focus {
   -webkit-text-fill-color: #030712 !important;
   box-shadow: 0 0 0px 1000px #ffffff inset !important;
 }
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+}

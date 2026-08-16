@@ -197,25 +197,31 @@ export default function AdminEditProduct({ params: paramsPromise }) {
     }
   };
 
+  // 🟢 Đã tối ưu duyệt đệ quy trực tiếp mảng children lồng nhau từ Backend
   const categoryTree = useMemo(() => {
     if (!categories || !categories.length) return [];
-    const map = new Map(categories.map((cat) => [cat._id, { ...cat, children: [] }]));
-    const roots = [];
-    map.forEach((category) => {
-      const parentId = category.parent?._id || category.parent;
-      if (parentId && map.has(parentId)) map.get(parentId).children.push(category);
-      else roots.push(category);
-    });
+
     const ordered = [];
+
     const traverse = (nodes, level = 0) => {
-      nodes
-        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-        .forEach((node) => {
-          ordered.push({ ...node, level });
-          if (node.children && node.children.length) traverse(node.children, level + 1);
+      const sortedNodes = [...nodes].sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '')
+      );
+
+      sortedNodes.forEach((node) => {
+        ordered.push({
+          _id: node._id,
+          name: node.name,
+          level,
         });
+
+        if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+          traverse(node.children, level + 1);
+        }
+      });
     };
-    traverse(roots);
+
+    traverse(categories);
     return ordered;
   }, [categories]);
 
@@ -321,13 +327,12 @@ export default function AdminEditProduct({ params: paramsPromise }) {
               <NumericFormat
                 value={form.price || 0}
                 onValueChange={(values) => {
-                  // values.floatValue tự động trả về giá trị kiểu Number (ví dụ: 1000000)
                   setForm({ ...form, price: values.floatValue || 0 });
                 }}
-                thousandSeparator="." // Phân cách 3 chữ số bằng 1 khoảng trắng
-                decimalSeparator=","   // Đổi dấu thập phân sang dấu phẩy để tránh trùng với thousandSeparator
-                allowNegative={false} // Chặn hoàn toàn số âm
-                decimalScale={0}      // Chỉ nhận số nguyên (loại bỏ dấu thập phân)
+                thousandSeparator="."
+                decimalSeparator=","
+                allowNegative={false}
+                decimalScale={0}
                 suffix=" đ"
                 placeholder="Nhập giá tiền sản phẩm"
                 required
